@@ -6,8 +6,20 @@ const { getActivities, addActivity } = require('./storage');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'https://barcelona-activities-frontend.vercel.app')
+  .split(',')
+  .map(o => o.trim())
+  .concat(['http://localhost:3000', 'http://localhost:3001']);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://barcelona-activities-frontend.vercel.app'
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (ej: curl, Postman) y los origins permitidos
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  }
 }));
 app.use(express.json());
 
