@@ -1,0 +1,18 @@
+# Formato estándar de actividad para integración multi-fuente
+
+{
+  "id": "string",                // ID único, prefijado por fuente (ej: meetup_123, eventbrite_456)
+  "name": "string",              // Nombre del evento
+  "body": "string",              // Descripción del evento
+  "start_date": "YYYY-MM-DD",    // Fecha de inicio (formato ISO)
+  "end_date": "YYYY-MM-DD",      // Fecha de fin (formato ISO)
+  "geo_epgs_4326_latlon": "lat,lon", // Coordenadas (si disponibles)
+  "category": "string",          // Categoría (normalizada o fuente)
+  "origen": "string",            // Fuente de datos ("opendata-ajuntament", "meetup", "eventbrite", "allevents")
+  "direccion": "string"          // Dirección textual del evento (si disponible)
+}
+
+// Notas:
+// - Para AllEvents.in no se requiere API key, los eventos se obtienen directamente.
+// - Los campos "origen" y "direccion" son obligatorios para todas las fuentes.
+// - Si algún campo no está disponible en la fuente, dejarlo como string vacío.

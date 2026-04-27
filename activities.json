@@ -5,7 +5,10 @@
     "body": "Castellers plaza real",
     "start_date": "2026-04-20",
     "end_date": "2026-04-20",
-    "geo_epgs_4326_latlon": "41.38286240271191, 2.16366861278653"
+    "geo_epgs_4326_latlon": "41.38286240271191, 2.16366861278653",
+    "category": "family",
+    "origen": "manual",
+    "direccion": "Plaza Real, Barcelona"
   },
   {
     "id": "1776624903397",
@@ -14,6 +17,8 @@
     "start_date": "2026-04-28",
     "end_date": "2026-04-28",
     "geo_epgs_4326_latlon": "41.36837433589915, 2.1522555991987717",
-    "category": "nature"
+    "category": "sport",
+    "origen": "manual",
+    "direccion": "Montjuïc, Barcelona"
   }
 ]
