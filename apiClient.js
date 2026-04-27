@@ -20,16 +20,28 @@ function inferCategory(record) {
   return null;
 }
 
-const mockEvents = [
-  { register_id: 'evt001', name: 'Sagrada Familia Tour',               start_date: '2026-04-20', end_date: '2026-04-25', geo_epgs_4326_latlon: '41.4036,2.1744',  body: 'Visita guiada a la Sagrada Familia.',             category: 'culture' },
-  { register_id: 'evt002', name: 'Park Guell Experience',              start_date: '2026-04-21', end_date: '2026-04-26', geo_epgs_4326_latlon: '41.3847,2.1521',  body: 'Explora el parque mas hermoso de Barcelona.',     category: 'nature'  },
-  { register_id: 'evt003', name: 'Gothic Quarter Walking Tour',        start_date: '2026-04-19', end_date: '2026-04-30', geo_epgs_4326_latlon: '41.3851,2.1734',  body: 'Recorrido por el barrio gotico medieval.',         category: 'culture' },
-  { register_id: 'evt004', name: 'Beach Volleyball Tournament',        start_date: '2026-04-25', end_date: '2026-04-25', geo_epgs_4326_latlon: '41.3863,2.1841',  body: 'Torneo de voleibol en la playa de Barcelona.',    category: 'sport'   },
-  { register_id: 'evt005', name: 'Jazz al Parc de la Ciutadella',      start_date: '2026-04-22', end_date: '2026-04-22', geo_epgs_4326_latlon: '41.3862,2.1868',  body: 'Concert de jazz en viu. Entrada lliure.',          category: 'music'   },
-  { register_id: 'evt006', name: 'Mercat de Santa Caterina',           start_date: '2026-04-26', end_date: '2026-04-26', geo_epgs_4326_latlon: '41.3851,2.1770',  body: 'Tast de productes locals al Mercat de Santa Caterina.', category: 'food' },
-  { register_id: 'evt007', name: 'Festa Familiar al Tibidabo',         start_date: '2026-04-27', end_date: '2026-04-27', geo_epgs_4326_latlon: '41.4216,2.1184',  body: 'Jornada familiar amb activitats per a nens.',     category: 'family'  },
-  { register_id: 'evt008', name: 'Nit de Copes al Born',               start_date: '2026-04-25', end_date: '2026-04-26', geo_epgs_4326_latlon: '41.3855,2.1824',  body: 'Ruta de cocktails pels bars del barri del Born.', category: 'night'   }
-];
+// ✅ Generar eventos con fechas dinámicas (hoy + 10 días)
+function generateMockEvents() {
+  const today = new Date();
+  const fmt = (d) => d.toISOString().split('T')[0];
+  
+  const getDate = (daysFromNow) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + daysFromNow);
+    return fmt(d);
+  };
+
+  return [
+    { register_id: 'evt001', name: 'Sagrada Familia Tour',               start_date: getDate(0), end_date: getDate(5), geo_epgs_4326_latlon: '41.4036,2.1744',  body: 'Visita guiada a la Sagrada Familia.',             category: 'culture' },
+    { register_id: 'evt002', name: 'Park Guell Experience',              start_date: getDate(1), end_date: getDate(7), geo_epgs_4326_latlon: '41.3847,2.1521',  body: 'Explora el parque mas hermoso de Barcelona.',     category: 'nature'  },
+    { register_id: 'evt003', name: 'Gothic Quarter Walking Tour',        start_date: getDate(0), end_date: getDate(10), geo_epgs_4326_latlon: '41.3851,2.1734',  body: 'Recorrido por el barrio gotico medieval.',         category: 'culture' },
+    { register_id: 'evt004', name: 'Beach Volleyball Tournament',        start_date: getDate(2), end_date: getDate(2), geo_epgs_4326_latlon: '41.3863,2.1841',  body: 'Torneo de voleibol en la playa de Barcelona.',    category: 'sport'   },
+    { register_id: 'evt005', name: 'Jazz al Parc de la Ciutadella',      start_date: getDate(1), end_date: getDate(1), geo_epgs_4326_latlon: '41.3862,2.1868',  body: 'Concert de jazz en viu. Entrada lliure.',          category: 'music'   },
+    { register_id: 'evt006', name: 'Mercat de Santa Caterina',           start_date: getDate(3), end_date: getDate(3), geo_epgs_4326_latlon: '41.3851,2.1770',  body: 'Tast de productes locals al Mercat de Santa Caterina.', category: 'food' },
+    { register_id: 'evt007', name: 'Festa Familiar al Tibidabo',         start_date: getDate(5), end_date: getDate(5), geo_epgs_4326_latlon: '41.4216,2.1184',  body: 'Jornada familiar amb activitats per a nens.',     category: 'family'  },
+    { register_id: 'evt008', name: 'Nit de Copes al Born',               start_date: getDate(2), end_date: getDate(8), geo_epgs_4326_latlon: '41.3855,2.1824',  body: 'Ruta de cocktails pels bars del barri del Born.', category: 'night'   }
+  ];
+}
 
 async function fetchBarcelonaEvents() {
   try {
@@ -45,9 +57,9 @@ async function fetchBarcelonaEvents() {
       }));
     }
   } catch (apiError) {
-    console.log('API real no disponible, usando datos mock');
+    console.log('API real no disponible, usando datos mock con fechas actuales');
   }
-  return mockEvents;
+  return generateMockEvents(); // ✅ Retorna eventos con fechas dinámicas
 }
 
 module.exports = { fetchBarcelonaEvents };
