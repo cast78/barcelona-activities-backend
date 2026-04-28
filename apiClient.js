@@ -53,6 +53,7 @@ function generateMockEvents() {
 
 const { fetchTicketmasterEvents, fetchAllEventsIn } = require('./externalSources');
 const { normalizeActivity } = require('./normalize');
+const { enrichWithGuiaBCN } = require('./scrapeGuiaBcn');
 
 async function fetchBarcelonaEvents(startDate, endDate) {
   const today = new Date().toISOString().split('T')[0];
@@ -63,7 +64,7 @@ async function fetchBarcelonaEvents(startDate, endDate) {
 
   let mainEvents = [];
   try {
-    const sql = `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE name NOT ILIKE '%taller%' AND name NOT ILIKE '%curs%' AND (end_date IS NULL OR end_date >= '${fromDate}T00:00:00') AND start_date >= '${fromDate}T00:00:00' AND start_date <= '${toDate}T23:59:59' ORDER BY start_date ASC LIMIT 100`;
+    const sql = `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE name NOT ILIKE '%taller%' AND name NOT ILIKE '%curs%' AND name NOT ILIKE '%workshop%' AND name NOT ILIKE '%seminari%' AND name NOT ILIKE '%itinerar%' AND (secondary_filters_fullpath IS NULL OR (secondary_filters_fullpath NOT ILIKE '%taller%' AND secondary_filters_fullpath NOT ILIKE '%curs%')) AND (end_date IS NULL OR end_date >= '${fromDate}T00:00:00') AND start_date >= '${fromDate}T00:00:00' AND start_date <= '${toDate}T23:59:59' ORDER BY start_date ASC LIMIT 100`;
     const response = await axios.get(
       'https://opendata-ajuntament.barcelona.cat/data/api/action/datastore_search_sql',
       { params: { sql }, timeout: 10000 }
@@ -77,15 +78,53 @@ async function fetchBarcelonaEvents(startDate, endDate) {
         const direccion = streetParts.length > 0
           ? `${streetParts.join(', ')}, ${rec.addresses_district_name || rec.addresses_town || 'Barcelona'}`
           : (rec.addresses_district_name || '');
+        // Extraer hora del timestamp: solo si es una hora razonable (>=07:00)
+        // T03:00:00 es artefacto UTC del dataset opendata (no es hora real del evento)
+        const tsTime = rec.start_date && rec.start_date.includes('T')
+          ? rec.start_date.split('T')[1].substring(0, 5)
+          : '';
+        const tsHour = tsTime ? parseInt(tsTime.split(':')[0], 10) : -1;
+        // timetable: si empieza con HH:MM úsalo como hora; si es texto libre va al body
+        const timetableRaw = (rec.timetable || '').trim();
+        const timetableTimeMatch = timetableRaw.match(/^(\d{1,2}:\d{2})/);
+        const timetableTime = timetableTimeMatch ? timetableTimeMatch[1] : '';
+        const timetableText = timetableRaw && !timetableTimeMatch ? timetableRaw : '';
+        const startTime = timetableTime || (tsHour >= 7 ? tsTime : '');
+        // Construir descripción con lo disponible
+        const bodyParts = [
+          rec.values_description || '',
+          timetableText,
+          rec.institution_name ? `Organitza: ${rec.institution_name}` : '',
+          rec.secondary_filters_name ? `Àmbit: ${rec.secondary_filters_name}` : ''
+        ].map(s => s.trim()).filter(Boolean);
         return normalizeActivity({
           ...rec,
-          id: rec.register_id || String(rec._id) || '',
+          id: (rec.register_id || String(rec._id) || '').replace(/^\uFEFF/, ''),
+          body: bodyParts.join(' · ') || '',
+          start_time: startTime,
           geo_epgs_4326_latlon: latlon,
           category: rec.category || inferCategory(rec),
           origen: 'opendata-ajuntament',
           direccion
         }, 'opendata-ajuntament');
       });
+      // Filtrar actividades de larga duración (>3 días = exposiciones, ciclos, cursos disfrazados)
+      mainEvents = mainEvents.filter(ev => {
+        if (!ev.end_date || !ev.start_date) return true;
+        const start = new Date(ev.start_date);
+        const end = new Date(ev.end_date);
+        const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+        return diffDays <= 3;
+      });
+
+      // Enriquecer con hora real y lugar desde guia.barcelona.cat
+      try {
+        mainEvents = await enrichWithGuiaBCN(mainEvents, { concurrency: 10, maxEvents: 90 });
+        logToFile(`[INFO] guia.barcelona.cat scraping completado para ${Math.min(mainEvents.length, 90)} eventos`);
+      } catch (scrapeErr) {
+        logToFile(`[WARN] guia.barcelona.cat scraping error: ${scrapeErr.message}`);
+      }
+
       const msg = `[INFO] opendata-ajuntament: ${mainEvents.length} eventos obtenidos`;
       console.log(msg);
       logToFile(msg);

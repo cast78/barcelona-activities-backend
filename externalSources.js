@@ -21,11 +21,19 @@ async function fetchTicketmasterEvents(startDate, endDate) {
       const address = venue && venue.address && venue.address.line1;
       const city = venue && venue.city && venue.city.name;
       const direccion = [address, city].filter(Boolean).join(', ');
+      const genre = ev.classifications && ev.classifications[0] && ev.classifications[0].genre && ev.classifications[0].genre.name;
+      const subGenre = ev.classifications && ev.classifications[0] && ev.classifications[0].subGenre && ev.classifications[0].subGenre.name;
+      const bodyParts = [
+        ev.description || ev.info || ev.pleaseNote || '',
+        genre && genre !== 'Undefined' ? `Género: ${genre}` : '',
+        subGenre && subGenre !== 'Undefined' ? subGenre : ''
+      ].filter(Boolean);
       return {
         id: `ticketmaster_${ev.id}`,
         name: ev.name,
-        body: ev.info || ev.pleaseNote || '',
+        body: bodyParts.join(' · ') || '',
         start_date: ev.dates && ev.dates.start && ev.dates.start.localDate,
+        start_time: ev.dates && ev.dates.start && ev.dates.start.localTime || '',
         end_date: ev.dates && ev.dates.end && ev.dates.end.localDate || null,
         geo_epgs_4326_latlon: lat && lon ? `${lat},${lon}` : '',
         category: 'ticketmaster',
