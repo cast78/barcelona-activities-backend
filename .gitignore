@@ -7,6 +7,10 @@ node_modules/
 
 # logs
 npm-debug.log*
+*.log
+node-stdout.log
+node-stderr.log
+backend.log
 
 # OS
 .DS_Store
