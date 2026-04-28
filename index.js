@@ -1,3 +1,5 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { fetchBarcelonaEvents } = require('./apiClient');
@@ -26,7 +28,8 @@ app.use(express.json());
 // Route to get events from Barcelona API
 app.get('/api/events', async (req, res) => {
   try {
-    const events = await fetchBarcelonaEvents();
+    const { startDate, endDate } = req.query;
+    const events = await fetchBarcelonaEvents(startDate, endDate);
     console.log(`✅ Returning ${events.length} events`);
     res.json(events);
   } catch (error) {

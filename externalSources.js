@@ -1,58 +1,40 @@
-// Módulos de integración para Meetup, Eventbrite y AllEvents.in
+// Módulos de integración para Ticketmaster y AllEvents.in
 const axios = require('axios');
 
-async function fetchMeetupEvents() {
-  // Requiere API Key de Meetup (usar variable de entorno)
-  const apiKey = process.env.MEETUP_API_KEY;
+async function fetchTicketmasterEvents(startDate, endDate) {
+  const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) return [];
   try {
-    const url = `https://api.meetup.com/find/upcoming_events?key=${apiKey}&sign=true&lon=2.1734&lat=41.3851&radius=10&topic_category=292`; // Barcelona
-    const res = await axios.get(url);
-    if (res.data && res.data.events) {
-      return res.data.events.map(ev => ({
-        id: `meetup_${ev.id}`,
+    const startDateTime = startDate
+      ? `${startDate}T00:00:00Z`
+      : new Date().toISOString().split('.')[0] + 'Z';
+    const endDateTime = endDate ? `${endDate}T23:59:59Z` : '';
+    const endParam = endDateTime ? `&endDateTime=${endDateTime}` : '';
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?city=Barcelona&countryCode=ES&size=50&startDateTime=${startDateTime}${endParam}&apikey=${apiKey}`;
+    const res = await axios.get(url, { timeout: 10000 });
+    const events = res.data && res.data._embedded && res.data._embedded.events;
+    if (!events) return [];
+    return events.map(ev => {
+      const venue = ev._embedded && ev._embedded.venues && ev._embedded.venues[0];
+      const lat = venue && venue.location && venue.location.latitude;
+      const lon = venue && venue.location && venue.location.longitude;
+      const address = venue && venue.address && venue.address.line1;
+      const city = venue && venue.city && venue.city.name;
+      const direccion = [address, city].filter(Boolean).join(', ');
+      return {
+        id: `ticketmaster_${ev.id}`,
         name: ev.name,
-        body: ev.description || '',
-        start_date: ev.local_date || '',
-        end_date: ev.local_date || '',
-        geo_epgs_4326_latlon: ev.venue ? `${ev.venue.lat},${ev.venue.lon}` : '',
-        category: 'meetup',
-        origen: 'meetup',
-        direccion: ev.venue ? ev.venue.address_1 : ''
-      }));
-    }
-  } catch (e) {
-    console.log('Error Meetup:', e.message);
-  }
-  return [];
-}
-
-async function fetchEventbriteEvents() {
-  // Requiere Private Token de Eventbrite (usar variable de entorno)
-  const privateToken = process.env.EVENTBRITE_API_KEY;
-  if (!privateToken) return [];
-  try {
-    const url = `https://www.eventbriteapi.com/v3/events/search/?location.address=barcelona`;
-    const res = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${privateToken}`
-      }
+        body: ev.info || ev.pleaseNote || '',
+        start_date: ev.dates && ev.dates.start && ev.dates.start.localDate,
+        end_date: ev.dates && ev.dates.end && ev.dates.end.localDate || null,
+        geo_epgs_4326_latlon: lat && lon ? `${lat},${lon}` : '',
+        category: 'ticketmaster',
+        origen: 'ticketmaster',
+        direccion
+      };
     });
-    if (res.data && res.data.events) {
-      return res.data.events.map(ev => ({
-        id: `eventbrite_${ev.id}`,
-        name: ev.name && ev.name.text,
-        body: ev.description && ev.description.text,
-        start_date: ev.start && ev.start.local ? ev.start.local.split('T')[0] : '',
-        end_date: ev.end && ev.end.local ? ev.end.local.split('T')[0] : '',
-        geo_epgs_4326_latlon: '', // Eventbrite no siempre da lat/lon
-        category: 'eventbrite',
-        origen: 'eventbrite',
-        direccion: ev.venue_id || ''
-      }));
-    }
   } catch (e) {
-    console.log('Error Eventbrite:', e.message);
+    console.log('Error Ticketmaster:', e.message);
   }
   return [];
 }
@@ -81,4 +63,4 @@ async function fetchAllEventsIn() {
   return [];
 }
 
-module.exports = { fetchMeetupEvents, fetchEventbriteEvents, fetchAllEventsIn };
+module.exports = { fetchTicketmasterEvents, fetchAllEventsIn };

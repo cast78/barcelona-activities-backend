@@ -51,15 +51,22 @@ function generateMockEvents() {
 
 
 
-const { fetchMeetupEvents, fetchEventbriteEvents, fetchAllEventsIn } = require('./externalSources');
+const { fetchTicketmasterEvents, fetchAllEventsIn } = require('./externalSources');
 const { normalizeActivity } = require('./normalize');
 
-async function fetchBarcelonaEvents() {
+async function fetchBarcelonaEvents(startDate, endDate) {
+  const today = new Date().toISOString().split('T')[0];
+  const fromDate = startDate || today;
+  const toDate = endDate || (() => {
+    const d = new Date(); d.setDate(d.getDate() + 10); return d.toISOString().split('T')[0];
+  })();
+
   let mainEvents = [];
   try {
+    const sql = `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE name NOT ILIKE '%taller%' AND name NOT ILIKE '%curs%' AND (end_date IS NULL OR end_date >= '${fromDate}T00:00:00') AND start_date >= '${fromDate}T00:00:00' AND start_date <= '${toDate}T23:59:59' ORDER BY start_date ASC LIMIT 100`;
     const response = await axios.get(
-      'https://opendata-ajuntament.barcelona.cat/data/api/action/datastore_search?resource_id=3abb2414-1ee0-446e-9c25-380e938adb73&limit=100',
-      { timeout: 10000 }
+      'https://opendata-ajuntament.barcelona.cat/data/api/action/datastore_search_sql',
+      { params: { sql }, timeout: 10000 }
     );
     if (response.data && response.data.result && response.data.result.records) {
       mainEvents = response.data.result.records.map(rec => {
@@ -95,34 +102,31 @@ async function fetchBarcelonaEvents() {
 
   // Llamar a las otras fuentes en paralelo
 
-  const [meetupEvents, eventbriteEvents, allevents] = await Promise.all([
-    fetchMeetupEvents(),
-    fetchEventbriteEvents(),
+  const [ticketmasterEvents, allevents] = await Promise.all([
+    fetchTicketmasterEvents(fromDate, toDate),
     fetchAllEventsIn()
   ]);
 
-
-  let msg = `[INFO] meetup: ${meetupEvents.length} eventos obtenidos`;
-  console.log(msg); logToFile(msg);
-  msg = `[INFO] eventbrite: ${eventbriteEvents.length} eventos obtenidos`;
+  let msg = `[INFO] ticketmaster: ${ticketmasterEvents.length} eventos obtenidos`;
   console.log(msg); logToFile(msg);
   msg = `[INFO] allevents: ${allevents.length} eventos obtenidos`;
   console.log(msg); logToFile(msg);
 
-  if (meetupEvents.length === 0) { msg = '[WARN] meetup: sin eventos (¿API key?)'; console.warn(msg); logToFile(msg); }
-  if (eventbriteEvents.length === 0) { msg = '[WARN] eventbrite: sin eventos (¿API key?)'; console.warn(msg); logToFile(msg); }
+  if (ticketmasterEvents.length === 0) { msg = '[WARN] ticketmaster: sin eventos (¿TICKETMASTER_API_KEY en .env?)'; console.warn(msg); logToFile(msg); }
   if (allevents.length === 0) { msg = '[WARN] allevents: sin eventos'; console.warn(msg); logToFile(msg); }
 
   // Normalizar eventos de otras fuentes
-  const normalizedMeetup = (meetupEvents || []).map(ev => normalizeActivity(ev, 'meetup'));
-  const normalizedEventbrite = (eventbriteEvents || []).map(ev => normalizeActivity(ev, 'eventbrite'));
+  const normalizedTicketmaster = (ticketmasterEvents || []).map(ev => {
+    const normalized = normalizeActivity(ev, 'ticketmaster');
+    normalized.category = inferCategory(normalized) || '';
+    return normalized;
+  });
   const normalizedAllEvents = (allevents || []).map(ev => normalizeActivity(ev, 'allevents'));
 
   // Unir todos los eventos
   const allEvents = [
     ...mainEvents,
-    ...normalizedMeetup,
-    ...normalizedEventbrite,
+    ...normalizedTicketmaster,
     ...normalizedAllEvents
   ];
 
