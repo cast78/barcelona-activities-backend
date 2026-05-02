@@ -3,6 +3,7 @@ const path = require('path');
 
 const ACTIVITIES_FILE = path.join(__dirname, 'activities.json');
 const LIKES_FILE = path.join(__dirname, 'likes.json');
+const ATTENDEES_FILE = path.join(__dirname, 'attendees.json');
 
 // Initialize file if not exists
 async function initStorage() {
@@ -57,3 +58,31 @@ async function toggleLike(id, action) {
 }
 
 module.exports = { getActivities, addActivity, getLikes, toggleLike };
+
+// ── Attendees ──────────────────────────────────────────────────────────────
+
+async function initAttendees() {
+  try { await fs.access(ATTENDEES_FILE); }
+  catch { await fs.writeFile(ATTENDEES_FILE, JSON.stringify({})); }
+}
+
+async function getAttendees() {
+  await initAttendees();
+  const data = await fs.readFile(ATTENDEES_FILE, 'utf8');
+  return JSON.parse(data);
+}
+
+// action: 'attend' | 'unattend'
+async function toggleAttend(id, action) {
+  const attendees = await getAttendees();
+  if (action === 'attend') {
+    attendees[id] = (attendees[id] || 0) + 1;
+  } else {
+    attendees[id] = Math.max(0, (attendees[id] || 0) - 1);
+    if (attendees[id] === 0) delete attendees[id];
+  }
+  await fs.writeFile(ATTENDEES_FILE, JSON.stringify(attendees, null, 2));
+  return attendees[id] || 0;
+}
+
+module.exports = { getActivities, addActivity, getLikes, toggleLike, getAttendees, toggleAttend };

@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { fetchBarcelonaEvents } = require('./apiClient');
-const { getActivities, addActivity, getLikes, toggleLike } = require('./storage');
+const { getActivities, addActivity, getLikes, toggleLike, getAttendees, toggleAttend } = require('./storage');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,10 +29,10 @@ app.use(express.json());
 app.get('/api/events', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const [events, likes] = await Promise.all([fetchBarcelonaEvents(startDate, endDate), getLikes()]);
-    const eventsWithLikes = events.map(e => ({ ...e, likes: likes[e.id] || 0 }));
-    console.log(`✅ Returning ${eventsWithLikes.length} events`);
-    res.json(eventsWithLikes);
+    const [events, likes, attendees] = await Promise.all([fetchBarcelonaEvents(startDate, endDate), getLikes(), getAttendees()]);
+    const eventsWithStats = events.map(e => ({ ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 }));
+    console.log(`✅ Returning ${eventsWithStats.length} events`);
+    res.json(eventsWithStats);
   } catch (error) {
     console.error('❌ Error in /api/events:', error.message);
     res.status(500).json({ error: 'Failed to fetch events' });
@@ -70,6 +70,21 @@ app.post('/api/likes/:id', async (req, res) => {
     res.json({ id, likes: count });
   } catch (error) {
     res.status(500).json({ error: 'Failed to toggle like' });
+  }
+});
+
+// Attendees: toggle attend/unattend for an event
+app.post('/api/attend/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+    if (action !== 'attend' && action !== 'unattend') {
+      return res.status(400).json({ error: 'action must be attend or unattend' });
+    }
+    const count = await toggleAttend(id, action);
+    res.json({ id, attendees: count });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle attendance' });
   }
 });
 
