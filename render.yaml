@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: barcelona-activities-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://barcelona-activities-frontend.vercel.app
+      - key: MEETUP_API_KEY
+        sync: false
+      - key: EVENTBRITE_API_KEY
+        sync: false
