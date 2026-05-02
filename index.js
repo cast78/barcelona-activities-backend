@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { fetchBarcelonaEvents } = require('./apiClient');
-const { getActivities, addActivity } = require('./storage');
+const { getActivities, addActivity, getLikes, toggleLike } = require('./storage');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,9 +29,10 @@ app.use(express.json());
 app.get('/api/events', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const events = await fetchBarcelonaEvents(startDate, endDate);
-    console.log(`✅ Returning ${events.length} events`);
-    res.json(events);
+    const [events, likes] = await Promise.all([fetchBarcelonaEvents(startDate, endDate), getLikes()]);
+    const eventsWithLikes = events.map(e => ({ ...e, likes: likes[e.id] || 0 }));
+    console.log(`✅ Returning ${eventsWithLikes.length} events`);
+    res.json(eventsWithLikes);
   } catch (error) {
     console.error('❌ Error in /api/events:', error.message);
     res.status(500).json({ error: 'Failed to fetch events' });
@@ -45,6 +46,30 @@ app.get('/api/activities', async (req, res) => {
     res.json(activities);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+// Likes: get all counts
+app.get('/api/likes', async (req, res) => {
+  try {
+    res.json(await getLikes());
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch likes' });
+  }
+});
+
+// Likes: toggle like/unlike for an event
+app.post('/api/likes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+    if (action !== 'like' && action !== 'unlike') {
+      return res.status(400).json({ error: 'action must be like or unlike' });
+    }
+    const count = await toggleLike(id, action);
+    res.json({ id, likes: count });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle like' });
   }
 });
 
