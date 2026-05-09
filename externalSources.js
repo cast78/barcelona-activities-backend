@@ -1,6 +1,27 @@
 // Módulos de integración para Ticketmaster y AllEvents.in
 const axios = require('axios');
 
+function mapTicketmasterCategory(segment, genre) {
+  const seg = (segment || '').toLowerCase();
+  const gen = (genre || '').toLowerCase();
+  if (seg === 'music') {
+    if (['jazz', 'blues', 'classical', 'opera'].some(k => gen.includes(k))) return 'music';
+    if (['comedy', 'stand-up', 'cabaret'].some(k => gen.includes(k))) return 'show';
+    return 'music';
+  }
+  if (seg === 'sports') return 'sport';
+  if (seg === 'arts & theatre') {
+    if (['comedy', 'cirque', 'magic', 'stand'].some(k => gen.includes(k))) return 'show';
+    if (['dance', 'ballet'].some(k => gen.includes(k))) return 'culture';
+    if (['family', 'children'].some(k => gen.includes(k))) return 'family';
+    return 'culture';
+  }
+  if (seg === 'film') return 'culture';
+  if (seg === 'family') return 'family';
+  if (seg === 'miscellaneous') return 'other';
+  return null;
+}
+
 async function fetchTicketmasterEvents(startDate, endDate) {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) return [];
@@ -21,6 +42,7 @@ async function fetchTicketmasterEvents(startDate, endDate) {
       const address = venue && venue.address && venue.address.line1;
       const city = venue && venue.city && venue.city.name;
       const direccion = [address, city].filter(Boolean).join(', ');
+      const segment = ev.classifications && ev.classifications[0] && ev.classifications[0].segment && ev.classifications[0].segment.name;
       const genre = ev.classifications && ev.classifications[0] && ev.classifications[0].genre && ev.classifications[0].genre.name;
       const subGenre = ev.classifications && ev.classifications[0] && ev.classifications[0].subGenre && ev.classifications[0].subGenre.name;
       const bodyParts = [
@@ -28,6 +50,7 @@ async function fetchTicketmasterEvents(startDate, endDate) {
         genre && genre !== 'Undefined' ? `Género: ${genre}` : '',
         subGenre && subGenre !== 'Undefined' ? subGenre : ''
       ].filter(Boolean);
+      const mappedCategory = mapTicketmasterCategory(segment, genre);
       return {
         id: `ticketmaster_${ev.id}`,
         name: ev.name,
@@ -36,7 +59,7 @@ async function fetchTicketmasterEvents(startDate, endDate) {
         start_time: ev.dates && ev.dates.start && ev.dates.start.localTime || '',
         end_date: ev.dates && ev.dates.end && ev.dates.end.localDate || null,
         geo_epgs_4326_latlon: lat && lon ? `${lat},${lon}` : '',
-        category: 'ticketmaster',
+        category: mappedCategory,
         origen: 'ticketmaster',
         direccion
       };

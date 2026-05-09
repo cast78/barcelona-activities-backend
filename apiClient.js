@@ -157,7 +157,7 @@ async function fetchBarcelonaEvents(startDate, endDate) {
   // Normalizar eventos de otras fuentes
   const normalizedTicketmaster = (ticketmasterEvents || []).map(ev => {
     const normalized = normalizeActivity(ev, 'ticketmaster');
-    normalized.category = inferCategory(normalized) || '';
+    normalized.category = ev.category || inferCategory(normalized) || 'other';
     return normalized;
   });
   const normalizedAllEvents = (allevents || []).map(ev => normalizeActivity(ev, 'allevents'));
