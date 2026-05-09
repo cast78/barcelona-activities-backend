@@ -45,10 +45,24 @@ async function fetchTicketmasterEvents(startDate, endDate) {
       const segment = ev.classifications && ev.classifications[0] && ev.classifications[0].segment && ev.classifications[0].segment.name;
       const genre = ev.classifications && ev.classifications[0] && ev.classifications[0].genre && ev.classifications[0].genre.name;
       const subGenre = ev.classifications && ev.classifications[0] && ev.classifications[0].subGenre && ev.classifications[0].subGenre.name;
+      const priceRanges = ev.priceRanges;
+      let priceTag = '';
+      if (priceRanges && priceRanges.length > 0) {
+        const p = priceRanges[0];
+        const currency = p.currency === 'EUR' ? '€' : (p.currency || '');
+        priceTag = p.min === p.max
+          ? `Precio: ${p.min}${currency}`
+          : `Precio: ${p.min}${currency} – ${p.max}${currency}`;
+      }
+      const venueName = venue && venue.name && venue.name !== 'undefined' ? venue.name : '';
+      const ticketUrl = ev.url ? `Entradas: ${ev.url}` : '';
       const bodyParts = [
-        ev.description || ev.info || ev.pleaseNote || '',
         genre && genre !== 'Undefined' ? `Género: ${genre}` : '',
-        subGenre && subGenre !== 'Undefined' ? subGenre : ''
+        subGenre && subGenre !== 'Undefined' ? subGenre : '',
+        priceTag,
+        ev.description || ev.info || ev.pleaseNote || '',
+        venueName,
+        ticketUrl
       ].filter(Boolean);
       const mappedCategory = mapTicketmasterCategory(segment, genre);
       return {
