@@ -104,6 +104,7 @@ async function scrapeEventDetails(registerId, eventName) {
     const html = response.data || '';
 
     return {
+      url,
       start_time:    extractTime(html),
       venue_name:    extractVenueName(html),
       venue_address: extractAddress(html),
@@ -155,6 +156,12 @@ async function enrichWithGuiaBCN(events, { concurrency = 10, maxEvents = 40 } = 
     if (s.price) {
       const priceTag = `Precio: ${s.price}`;
       enriched.body = enriched.body ? `${priceTag} · ${enriched.body}` : priceTag;
+    }
+
+    // URL de guia.barcelona.cat: añadir al final del body si el scraping fue exitoso
+    if (s.url) {
+      const infoTag = `Más info: ${s.url}`;
+      enriched.body = enriched.body ? `${enriched.body} · ${infoTag}` : infoTag;
     }
 
     return enriched;
