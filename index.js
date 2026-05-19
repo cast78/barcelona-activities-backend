@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const { fetchBarcelonaEvents } = require('./apiClient');
 const { getActivities, addActivity, getLikes, toggleLike, getAttendees, toggleAttend } = require('./storage');
+const { CATEGORY_KEYWORDS } = require('./apiClient');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'https://barcelona-activities-frontend.vercel.app')
   .split(',')
   .map(o => o.trim())
-  .concat(['http://localhost:3000', 'http://localhost:3001']);
+  .concat(['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002']);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -28,8 +29,9 @@ app.use(express.json());
 // Route to get events from Barcelona API
 app.get('/api/events', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
-    const [events, likes, attendees] = await Promise.all([fetchBarcelonaEvents(startDate, endDate), getLikes(), getAttendees()]);
+    const { startDate, endDate, currentTime } = req.query;
+    console.log(`[API] /events request: startDate=${startDate}, endDate=${endDate}, currentTime=${currentTime}`);
+    const [events, likes, attendees] = await Promise.all([fetchBarcelonaEvents(startDate, endDate, currentTime), getLikes(), getAttendees()]);
     const eventsWithStats = events.map(e => ({ ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 }));
     console.log(`✅ Returning ${eventsWithStats.length} events`);
     res.json(eventsWithStats);
@@ -96,6 +98,41 @@ app.post('/api/activities', async (req, res) => {
     res.json(activities);
   } catch (error) {
     res.status(500).json({ error: 'Failed to add activity' });
+  }
+});
+
+// Debug endpoint: test categorization
+app.post('/api/debug/categorize', (req, res) => {
+  try {
+    const { name, body } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'name is required' });
+    }
+    
+    // Simular inferCategory logic
+    const text = ((name || '') + ' ' + (body || '')).toLowerCase();
+    const keywordMatches = {};
+    let assignedCategory = 'other';
+    
+    for (const [catId, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      const matched = keywords.filter(kw => {
+        const regex = new RegExp(`\\b${kw}\\b`, 'i');
+        return regex.test(text);
+      });
+      keywordMatches[catId] = matched;
+      if (matched.length > 0 && assignedCategory === 'other') {
+        assignedCategory = catId;
+      }
+    }
+    
+    res.json({
+      input: { name, body },
+      assigned_category: assignedCategory,
+      keyword_matches: keywordMatches,
+      search_text: text
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to categorize', message: error.message });
   }
 });
 

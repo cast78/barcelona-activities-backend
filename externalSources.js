@@ -1,27 +1,6 @@
 // Módulos de integración para Ticketmaster y AllEvents.in
 const axios = require('axios');
 
-function mapTicketmasterCategory(segment, genre) {
-  const seg = (segment || '').toLowerCase();
-  const gen = (genre || '').toLowerCase();
-  if (seg === 'music') {
-    if (['jazz', 'blues', 'classical', 'opera'].some(k => gen.includes(k))) return 'music';
-    if (['comedy', 'stand-up', 'cabaret'].some(k => gen.includes(k))) return 'show';
-    return 'music';
-  }
-  if (seg === 'sports') return 'sport';
-  if (seg === 'arts & theatre') {
-    if (['comedy', 'cirque', 'magic', 'stand'].some(k => gen.includes(k))) return 'show';
-    if (['dance', 'ballet'].some(k => gen.includes(k))) return 'culture';
-    if (['family', 'children'].some(k => gen.includes(k))) return 'family';
-    return 'culture';
-  }
-  if (seg === 'film') return 'culture';
-  if (seg === 'family') return 'family';
-  if (seg === 'miscellaneous') return 'other';
-  return null;
-}
-
 async function fetchTicketmasterEvents(startDate, endDate) {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) return [];
@@ -42,39 +21,22 @@ async function fetchTicketmasterEvents(startDate, endDate) {
       const address = venue && venue.address && venue.address.line1;
       const city = venue && venue.city && venue.city.name;
       const direccion = [address, city].filter(Boolean).join(', ');
-      const segment = ev.classifications && ev.classifications[0] && ev.classifications[0].segment && ev.classifications[0].segment.name;
       const genre = ev.classifications && ev.classifications[0] && ev.classifications[0].genre && ev.classifications[0].genre.name;
       const subGenre = ev.classifications && ev.classifications[0] && ev.classifications[0].subGenre && ev.classifications[0].subGenre.name;
-      const priceRanges = ev.priceRanges;
-      let priceTag = '';
-      if (priceRanges && priceRanges.length > 0) {
-        const p = priceRanges[0];
-        const currency = p.currency === 'EUR' ? '€' : (p.currency || '');
-        priceTag = p.min === p.max
-          ? `Precio: ${p.min}${currency}`
-          : `Precio: ${p.min}${currency} – ${p.max}${currency}`;
-      }
-      const venueName = venue && venue.name && venue.name !== 'undefined' ? venue.name : '';
-      const ticketUrl = ev.url ? `Entradas: ${ev.url}` : '';
       const bodyParts = [
-        genre && genre !== 'Undefined' ? `Género: ${genre}` : '',
-        subGenre && subGenre !== 'Undefined' ? subGenre : '',
-        priceTag,
         ev.description || ev.info || ev.pleaseNote || '',
-        venueName,
-        ticketUrl
+        genre && genre !== 'Undefined' ? `Género: ${genre}` : '',
+        subGenre && subGenre !== 'Undefined' ? subGenre : ''
       ].filter(Boolean);
-      const mappedCategory = mapTicketmasterCategory(segment, genre);
       return {
         id: `ticketmaster_${ev.id}`,
         name: ev.name,
         body: bodyParts.join(' · ') || '',
         start_date: ev.dates && ev.dates.start && ev.dates.start.localDate,
         start_time: ev.dates && ev.dates.start && ev.dates.start.localTime || '',
-        end_time: ev.dates && ev.dates.end && ev.dates.end.localTime || '',
         end_date: ev.dates && ev.dates.end && ev.dates.end.localDate || null,
         geo_epgs_4326_latlon: lat && lon ? `${lat},${lon}` : '',
-        category: mappedCategory,
+        category: 'ticketmaster',
         origen: 'ticketmaster',
         direccion
       };
@@ -96,9 +58,7 @@ async function fetchAllEventsIn() {
         name: ev.eventname,
         body: ev.description,
         start_date: ev.start_time ? ev.start_time.split(' ')[0] : '',
-        start_time: ev.start_time ? (ev.start_time.split(' ')[1] || '').substring(0, 5) : '',
         end_date: ev.end_time ? ev.end_time.split(' ')[0] : '',
-        end_time: ev.end_time ? (ev.end_time.split(' ')[1] || '').substring(0, 5) : '',
         geo_epgs_4326_latlon: ev.latitude && ev.longitude ? `${ev.latitude},${ev.longitude}` : '',
         category: 'allevents',
         origen: 'allevents',
