@@ -83,13 +83,30 @@ const CATEGORY_DURATIONS = {
 
 /**
  * Filtra eventos pasados de una lista.
- * Solo actúa sobre eventos cuya start_date sea hoy.
- * Usa .startsWith(today) para tolerar timestamps con hora (ej: "2026-05-15T09:00:00").
+ * Actúa sobre eventos de hoy y de ayer (para eventos nocturnos que cruzan medianoche).
  */
 function filterPastEvents(events, today, currentTimeMinutes) {
+  // Calcular fecha de ayer
+  const todayObj = new Date(today + 'T12:00:00');
+  const yesterdayObj = new Date(todayObj); yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+  const yesterday = yesterdayObj.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
+
   return events.filter(event => {
     const eventDate = (event.start_date || '').substring(0, 10);
-    if (eventDate !== today) return true; // Otro día → mantener
+
+    // Eventos de ayer: solo mostrar si aún están en curso (cruzaron medianoche)
+    if (eventDate === yesterday) {
+      if (!event.start_time) return false;
+      const match = event.start_time.match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return false;
+      const eventStartMinutes = parseInt(match[1]) * 60 + parseInt(match[2]);
+      const duration = CATEGORY_DURATIONS[event.category] || 180;
+      const endMinutes = eventStartMinutes + duration;
+      if (endMinutes <= 1440) return false; // terminó antes de medianoche → descartar
+      return currentTimeMinutes < (endMinutes - 1440); // aún en curso en el nuevo día
+    }
+
+    if (eventDate !== today) return true; // Días futuros → mantener
 
     if (!event.start_time) return true; // Sin hora → mantener (no podemos saber si pasó)
 
@@ -207,17 +224,27 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
         return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
       })();
 
+      // Calcular ayer para capturar eventos nocturnos que cruzan medianoche
+      const yesterdayForQuery = (() => {
+        const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - 1);
+        return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
+      })();
+      // Solo buscar eventos de ayer si estamos antes de las 6am (posibles nocturnos aún en curso)
+      const sqlYesterday = currentTimeMinutes < 360
+        ? `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE ${WHERE_BASE} AND start_date >= '${yesterdayForQuery}T18:00:00' AND start_date <= '${yesterdayForQuery}T23:59:59' ORDER BY start_date ASC LIMIT 50`
+        : null;
       const sqlToday  = `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE ${WHERE_BASE} AND (end_date IS NULL OR end_date >= '${today}T00:00:00') AND start_date >= '${today}T00:00:00' AND start_date <= '${today}T23:59:59' ORDER BY start_date ASC LIMIT 150`;
       const sqlFuture = toDate >= tomorrow
         ? `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE ${WHERE_BASE} AND (end_date IS NULL OR end_date >= '${tomorrow}T00:00:00') AND start_date >= '${tomorrow}T00:00:00' AND start_date <= '${toDate}T23:59:59' ORDER BY start_date ASC LIMIT 100`
         : null;
 
-      const [todayEvents, futureEvents] = await Promise.all([
+      const [yesterdayEvents, todayEvents, futureEvents] = await Promise.all([
+        sqlYesterday ? queryOpenData(sqlYesterday) : Promise.resolve([]),
         queryOpenData(sqlToday),
         sqlFuture ? queryOpenData(sqlFuture) : Promise.resolve([])
       ]);
-      mainEvents = [...todayEvents, ...futureEvents];
-      logToFile(`[INFO] opendata split query: hoy=${todayEvents.length}, futuros=${futureEvents.length}`);
+      mainEvents = [...yesterdayEvents, ...todayEvents, ...futureEvents];
+      logToFile(`[INFO] opendata split query: ayer=${yesterdayEvents.length}, hoy=${todayEvents.length}, futuros=${futureEvents.length}`);
     } else {
       // Búsqueda enteramente en el futuro: un solo query
       const sql = `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE ${WHERE_BASE} AND (end_date IS NULL OR end_date >= '${fromDate}T00:00:00') AND start_date >= '${fromDate}T00:00:00' AND start_date <= '${toDate}T23:59:59' ORDER BY start_date ASC LIMIT 150`;
