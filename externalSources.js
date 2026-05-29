@@ -1,16 +1,20 @@
 // Módulos de integración para Ticketmaster y AllEvents.in
 const axios = require('axios');
 
-async function fetchTicketmasterEvents(startDate, endDate) {
+async function fetchTicketmasterEvents(startDate, endDate, opts = {}) {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) return [];
   try {
+    const { lat, lon, radius, category } = opts;
     const startDateTime = startDate
       ? `${startDate}T00:00:00Z`
       : new Date().toISOString().split('.')[0] + 'Z';
     const endDateTime = endDate ? `${endDate}T23:59:59Z` : '';
     const endParam = endDateTime ? `&endDateTime=${endDateTime}` : '';
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?city=Barcelona&countryCode=ES&size=50&startDateTime=${startDateTime}${endParam}&apikey=${apiKey}`;
+    let url = `https://app.ticketmaster.com/discovery/v2/events.json?city=Barcelona&countryCode=ES&size=50&startDateTime=${startDateTime}${endParam}&apikey=${apiKey}`;
+    if (lat && lon) url += `&latlong=${lat},${lon}`;
+    if (radius) url += `&radius=${radius}`;
+    if (category) url += `&classificationName=${encodeURIComponent(category)}`;
     const res = await axios.get(url, { timeout: 10000 });
     const events = res.data && res.data._embedded && res.data._embedded.events;
     if (!events) return [];

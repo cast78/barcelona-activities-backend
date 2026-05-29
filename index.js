@@ -29,9 +29,44 @@ app.use(express.json());
 // Route to get events from Barcelona API
 app.get('/api/events', async (req, res) => {
   try {
-    const { startDate, endDate, currentTime } = req.query;
-    console.log(`[API] /events request: startDate=${startDate}, endDate=${endDate}, currentTime=${currentTime}`);
-    const [events, likes, attendees] = await Promise.all([fetchBarcelonaEvents(startDate, endDate, currentTime), getLikes(), getAttendees()]);
+    const { startDate, endDate, currentTime, bySource, lat, lon, radius, category } = req.query;
+    console.log(`[API] /events request: startDate=${startDate}, endDate=${endDate}, currentTime=${currentTime}, bySource=${bySource}`);
+
+    // Construir objeto de filtros para compatibilidad con frontend
+    let filters = { startDate, endDate, currentTime };
+    if (lat !== undefined) filters.lat = Number(lat);
+    if (lon !== undefined) filters.lon = Number(lon);
+    if (radius !== undefined) filters.radius = Number(radius);
+    if (category) filters.category = category;
+
+    // Si bySource está presente, devolver agrupado por fuente
+    if (bySource) {
+      // fetchBarcelonaEvents debe retornar todos los eventos (array plano)
+      const [allEvents, likes, attendees] = await Promise.all([
+        fetchBarcelonaEvents(startDate, endDate, filters),
+        getLikes(),
+        getAttendees()
+      ]);
+      // Agrupar por fuente
+      const opendata = [];
+      const ticketmaster = [];
+      const allevents = [];
+      for (const e of allEvents) {
+        const eventWithStats = { ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 };
+        if (e.origen === 'opendata-ajuntament') opendata.push(eventWithStats);
+        else if (e.origen === 'ticketmaster') ticketmaster.push(eventWithStats);
+        else if (e.origen === 'allevents') allevents.push(eventWithStats);
+      }
+      res.json({ opendata, ticketmaster, allevents });
+      return;
+    }
+
+    // Modo legacy: array plano
+    const [events, likes, attendees] = await Promise.all([
+      fetchBarcelonaEvents(startDate, endDate, filters),
+      getLikes(),
+      getAttendees()
+    ]);
     const eventsWithStats = events.map(e => ({ ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 }));
     console.log(`✅ Returning ${eventsWithStats.length} events`);
     res.json(eventsWithStats);

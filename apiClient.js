@@ -148,8 +148,11 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
   })();
 
   let mainEvents = [];
+  const t0 = Date.now();
   try {
-    const WHERE_BASE = `name NOT ILIKE '%taller%' AND name NOT ILIKE '%curs%' AND name NOT ILIKE '%workshop%' AND name NOT ILIKE '%seminari%' AND name NOT ILIKE '%itinerar%' AND (secondary_filters_fullpath IS NULL OR (secondary_filters_fullpath NOT ILIKE '%taller%' AND secondary_filters_fullpath NOT ILIKE '%curs%'))`;
+    // Permitir filtro por categoría
+    const categoryFilter = (typeof currentTime === 'object' && currentTime.category) ? `AND category = '${currentTime.category}'` : '';
+    const WHERE_BASE = `name NOT ILIKE '%taller%' AND name NOT ILIKE '%curs%' AND name NOT ILIKE '%workshop%' AND name NOT ILIKE '%seminari%' AND name NOT ILIKE '%itinerar%' AND (secondary_filters_fullpath IS NULL OR (secondary_filters_fullpath NOT ILIKE '%taller%' AND secondary_filters_fullpath NOT ILIKE '%curs%')) ${categoryFilter}`;
 
     // Función auxiliar: normaliza un record crudo de OpenData
     const mapRecord = (rec) => {
@@ -219,6 +222,7 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
     // Si la búsqueda empieza hoy: dos queries en paralelo para que los eventos
     // de días futuros tengan su propio cupo y no sean desplazados por los de hoy.
     if (fromDate === today) {
+      const tOpenDataStart = Date.now();
       const tomorrow = (() => {
         const d = new Date(today); d.setDate(d.getDate() + 1);
         return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
@@ -244,11 +248,15 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
         sqlFuture ? queryOpenData(sqlFuture) : Promise.resolve([])
       ]);
       mainEvents = [...yesterdayEvents, ...todayEvents, ...futureEvents];
-      logToFile(`[INFO] opendata split query: ayer=${yesterdayEvents.length}, hoy=${todayEvents.length}, futuros=${futureEvents.length}`);
+      const tOpenDataEnd = Date.now();
+      logToFile(`[INFO] opendata split query: ayer=${yesterdayEvents.length}, hoy=${todayEvents.length}, futuros=${futureEvents.length}, tiempo=${tOpenDataEnd-tOpenDataStart}ms`);
     } else {
       // Búsqueda enteramente en el futuro: un solo query
       const sql = `SELECT * FROM "877ccf66-9106-4ae2-be51-95a9f6469e4c" WHERE ${WHERE_BASE} AND (end_date IS NULL OR end_date >= '${fromDate}T00:00:00') AND start_date >= '${fromDate}T00:00:00' AND start_date <= '${toDate}T23:59:59' ORDER BY start_date ASC LIMIT 150`;
+      const tOpenDataStart = Date.now();
       mainEvents = await queryOpenData(sql);
+      const tOpenDataEnd = Date.now();
+      logToFile(`[INFO] opendata query tiempo=${tOpenDataEnd-tOpenDataStart}ms`);
     }
 
     if (mainEvents.length > 0) {
@@ -289,14 +297,30 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
 
   // Llamar a las otras fuentes en paralelo
 
+  // Permitir pasar filtros a Ticketmaster
+  let ticketmasterOpts = {};
+  if (typeof currentTime === 'object') {
+    if (currentTime.lat && currentTime.lon) {
+      ticketmasterOpts.lat = currentTime.lat;
+      ticketmasterOpts.lon = currentTime.lon;
+    }
+    if (currentTime.radius) ticketmasterOpts.radius = currentTime.radius;
+    if (currentTime.category) ticketmasterOpts.category = currentTime.category;
+  }
+  const tTicketmasterStart = Date.now();
+  const ticketmasterPromise = fetchTicketmasterEvents(fromDate, toDate, ticketmasterOpts);
+  const alleventsPromise = fetchAllEventsIn();
   const [ticketmasterEvents, allevents] = await Promise.all([
-    fetchTicketmasterEvents(fromDate, toDate),
-    fetchAllEventsIn()
+    ticketmasterPromise,
+    alleventsPromise
   ]);
+  const tTicketmasterEnd = Date.now();
+  logToFile(`[INFO] ticketmaster tiempo=${tTicketmasterEnd-tTicketmasterStart}ms`);
 
   let msg = `[INFO] ticketmaster: ${ticketmasterEvents.length} eventos obtenidos`;
   console.log(msg); logToFile(msg);
-  msg = `[INFO] allevents: ${allevents.length} eventos obtenidos`;
+  const tAllEventsEnd = Date.now();
+  msg = `[INFO] allevents: ${allevents.length} eventos obtenidos, tiempo total backend=${tAllEventsEnd-t0}ms`;
   console.log(msg); logToFile(msg);
 
   if (ticketmasterEvents.length === 0) { msg = '[WARN] ticketmaster: sin eventos (¿TICKETMASTER_API_KEY en .env?)'; console.warn(msg); logToFile(msg); }
@@ -318,12 +342,33 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
   const filteredTicketmaster = filterPastEvents(normalizedTicketmaster, today, currentTimeMinutes);
   const filteredAllEvents = filterPastEvents(normalizedAllEvents, today, currentTimeMinutes);
 
-  // Unir todos los eventos
-  const allEvents = [
+  // Filtrar por radio después de obtener todos los eventos (si se pasa lat/lon/radius)
+  let allEvents = [
     ...mainEvents,
     ...filteredTicketmaster,
     ...filteredAllEvents
   ];
+  if (typeof currentTime === 'object' && currentTime.lat && currentTime.lon && currentTime.radius) {
+    const { lat, lon, radius } = currentTime;
+    // Haversine
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+    allEvents = allEvents.filter(ev => {
+      if (!ev.geo_epgs_4326_latlon) return false;
+      const parts = ev.geo_epgs_4326_latlon.split(',').map(Number);
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return false;
+      const dist = haversine(lat, lon, parts[0], parts[1]);
+      return dist <= radius;
+    });
+  }
 
   logToFile(`[INFO] Pre-dedup: opendata=${mainEvents.length}, ticketmaster=${filteredTicketmaster.length}, allevents=${filteredAllEvents.length}, total=${allEvents.length}`);
 
