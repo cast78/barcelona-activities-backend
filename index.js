@@ -39,9 +39,45 @@ app.get('/api/events', async (req, res) => {
     if (radius !== undefined) filters.radius = Number(radius);
     if (category) filters.category = category;
 
+
+    // Obtener actividades de usuario y marcar origen
+    let userActivities = await getActivities();
+    userActivities = userActivities.map(a => ({ ...a, origen: 'Usuario City Radar' }));
+
+    // --- FILTRADO DE ACTIVIDADES DE USUARIO ---
+    // Filtros: fecha, radio, categoría
+    const filterUserActivities = (activities) => {
+      // Asegurar que radius es número
+      const radiusNum = radius !== undefined ? Number(radius) : undefined;
+      return activities.filter(act => {
+        // Filtrar por fecha inicio/fin
+        if (startDate && act.start_date && act.start_date < startDate) return false;
+        if (endDate && act.start_date && act.start_date > endDate) return false;
+        // Filtrar por categoría
+        if (category && act.category && act.category !== category) return false;
+        // Filtrar por radio (si hay lat/lon)
+        if (lat !== undefined && lon !== undefined && act.geo_epgs_4326_latlon) {
+          const [aLat, aLon] = act.geo_epgs_4326_latlon.split(',').map(Number);
+          if (!isNaN(aLat) && !isNaN(aLon)) {
+            const R = 6371;
+            const dLat = (aLat - Number(lat)) * Math.PI / 180;
+            const dLon = (aLon - Number(lon)) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(Number(lat) * Math.PI / 180) * Math.cos(aLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const dist = R * c;
+            if (radiusNum !== undefined && dist > radiusNum) return false;
+          }
+        }
+        // Filtrar eventos pasados (solo mostrar hoy o futuros)
+        const today = new Date().toISOString().split('T')[0];
+        if (act.start_date && act.start_date < today) return false;
+        return true;
+      });
+    };
+    userActivities = filterUserActivities(userActivities);
+
     // Si bySource está presente, devolver agrupado por fuente
     if (bySource) {
-      // fetchBarcelonaEvents debe retornar todos los eventos (array plano)
       const [allEvents, likes, attendees] = await Promise.all([
         fetchBarcelonaEvents(startDate, endDate, filters),
         getLikes(),
@@ -51,13 +87,15 @@ app.get('/api/events', async (req, res) => {
       const opendata = [];
       const ticketmaster = [];
       const allevents = [];
+      // Añadir actividades de usuario como fuente separada
+      const usuarioCityRadar = userActivities.map(e => ({ ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 }));
       for (const e of allEvents) {
         const eventWithStats = { ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 };
         if (e.origen === 'opendata-ajuntament') opendata.push(eventWithStats);
         else if (e.origen === 'ticketmaster') ticketmaster.push(eventWithStats);
         else if (e.origen === 'allevents') allevents.push(eventWithStats);
       }
-      res.json({ opendata, ticketmaster, allevents });
+      res.json({ opendata, ticketmaster, allevents, usuarioCityRadar });
       return;
     }
 
@@ -67,8 +105,10 @@ app.get('/api/events', async (req, res) => {
       getLikes(),
       getAttendees()
     ]);
-    const eventsWithStats = events.map(e => ({ ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 }));
-    console.log(`✅ Returning ${eventsWithStats.length} events`);
+    // Mezclar eventos externos y actividades de usuario
+    const allEvents = [...events, ...userActivities];
+    const eventsWithStats = allEvents.map(e => ({ ...e, likes: likes[e.id] || 0, attendees: attendees[e.id] || 0 }));
+    console.log(`✅ Returning ${eventsWithStats.length} events (incluyendo usuario)`);
     res.json(eventsWithStats);
   } catch (error) {
     console.error('❌ Error in /api/events:', error.message);
