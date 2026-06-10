@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'https://barcelona-activities-frontend.vercel.app')
   .split(',')
   .map(o => o.trim())
-  .concat(['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002']);
+  .concat(['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005']);
 
 app.use(cors({
   origin: (origin, callback) => {
