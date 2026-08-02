@@ -68,8 +68,8 @@ app.get('/api/events', async (req, res) => {
             if (radiusNum !== undefined && dist > radiusNum) return false;
           }
         }
-        // Filtrar eventos pasados (solo mostrar hoy o futuros)
-        const today = new Date().toISOString().split('T')[0];
+        // Filtrar eventos pasados (solo mostrar hoy o futuros) — usar zona horaria local Barcelona
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
         if (act.start_date && act.start_date < today) return false;
         return true;
       });

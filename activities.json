@@ -214,5 +214,29 @@
     "venue_name": "adsada",
     "geo_epgs_4326_latlon": "41.394336, 2.196538",
     "category": "nature"
+  },
+  {
+    "id": "1780342750122",
+    "name": "casa",
+    "body": "casa",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-01",
+    "start_time": "21:38",
+    "end_time": "00:38",
+    "venue_name": "casa",
+    "geo_epgs_4326_latlon": "41.376054680008124,2.189804462104608",
+    "category": "family"
+  },
+  {
+    "id": "1780520533719",
+    "name": "casa",
+    "body": "casa",
+    "start_date": "2026-06-03",
+    "end_date": "2026-06-03",
+    "start_time": "23:01",
+    "end_time": "02:01",
+    "venue_name": "casa",
+    "geo_epgs_4326_latlon": "41.37604720473245,2.189778757431737",
+    "category": "music"
   }
 ]
