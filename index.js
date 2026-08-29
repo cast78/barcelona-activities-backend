@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const { fetchBarcelonaEvents } = require('./apiClient');
 const { getActivities, addActivity, getLikes, toggleLike, getAttendees, toggleAttend } = require('./storage');
+const { getRecommendations } = require('./recommendations');
 const { CATEGORY_KEYWORDS } = require('./apiClient');
 
 const app = express();
@@ -123,6 +124,15 @@ app.get('/api/activities', async (req, res) => {
     res.json(activities);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+// Route to get GoOnMap curated agenda (activities + plans)
+app.get('/api/recommendations', async (req, res) => {
+  try {
+    res.json(await getRecommendations());
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch recommendations' });
   }
 });
 

@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-25",
+  "activities": [
+    {
+      "id": "goonmap-0001",
+      "name": "Museu Picasso",
+      "body": "Recorre la mayor colección de obras de juventud de Picasso en pleno barrio del Born.",
+      "start_date": "2026-09-12",
+      "end_date": "2026-09-12",
+      "start_time": "10:00",
+      "end_time": "11:30",
+      "venue_name": "Museu Picasso de Barcelona",
+      "geo_epgs_4326_latlon": "41.3852,2.1809",
+      "category": "culture",
+      "origen": "GoOnMap",
+      "featured": true,
+      "plan_only": false
+    },
+    {
+      "id": "goonmap-0002",
+      "name": "Paseo por el Parc de la Ciutadella",
+      "body": "Un respiro verde en el centro: la Cascada, el lago y el Umbráculo.",
+      "start_date": "2026-09-12",
+      "end_date": "2026-09-12",
+      "start_time": "13:00",
+      "end_time": "14:30",
+      "venue_name": "Parc de la Ciutadella",
+      "geo_epgs_4326_latlon": "41.3884,2.1870",
+      "category": "nature",
+      "origen": "GoOnMap",
+      "featured": true,
+      "plan_only": false
+    },
+    {
+      "id": "goonmap-0003",
+      "name": "Concierto en el Palau de la Música",
+      "body": "Música en directo bajo la claraboya modernista, Patrimonio de la Humanidad.",
+      "start_date": "2026-09-12",
+      "end_date": "2026-09-12",
+      "start_time": "20:00",
+      "end_time": "21:30",
+      "venue_name": "Palau de la Música Catalana",
+      "geo_epgs_4326_latlon": "41.3875,2.1750",
+      "category": "music",
+      "origen": "GoOnMap",
+      "featured": true,
+      "plan_only": false
+    },
+    {
+      "id": "goonmap-0004",
+      "name": "Mercat de la Boqueria",
+      "body": "Tapea y prueba productos frescos en el mercado más famoso de la ciudad.",
+      "start_date": "2026-09-20",
+      "end_date": "2026-09-20",
+      "start_time": "11:00",
+      "end_time": "12:30",
+      "venue_name": "Mercat de Sant Josep de la Boqueria",
+      "geo_epgs_4326_latlon": "41.3817,2.1717",
+      "category": "food",
+      "origen": "GoOnMap",
+      "featured": true,
+      "plan_only": false
+    },
+    {
+      "id": "goonmap-0005",
+      "name": "Atardecer en los Búnkers del Carmel",
+      "body": "Las mejores vistas panorámicas de Barcelona al caer el sol.",
+      "start_date": "2026-09-20",
+      "end_date": "2026-09-20",
+      "start_time": "19:30",
+      "end_time": "20:30",
+      "venue_name": "Búnkers del Carmel (Turó de la Rovira)",
+      "geo_epgs_4326_latlon": "41.4194,2.1620",
+      "category": "nature",
+      "origen": "GoOnMap",
+      "featured": true,
+      "plan_only": false
+    },
+    {
+      "id": "goonmap-0006",
+      "name": "Basílica de la Sagrada Família",
+      "body": "La obra maestra de Gaudí, imprescindible en cualquier visita a la ciudad.",
+      "start_date": "2026-09-20",
+      "end_date": "2026-09-20",
+      "start_time": "17:00",
+      "end_time": "18:30",
+      "venue_name": "Basílica de la Sagrada Família",
+      "geo_epgs_4326_latlon": "41.4036,2.1744",
+      "category": "culture",
+      "origen": "GoOnMap",
+      "featured": true,
+      "plan_only": false
+    }
+  ],
+  "plans": [
+    {
+      "id": "plan-born-cultural",
+      "title": {
+        "es": "Finde cultural en el Born",
+        "ca": "Cap de setmana cultural al Born",
+        "en": "Cultural weekend in El Born",
+        "fr": "Week-end culturel à El Born"
+      },
+      "description": {
+        "es": "Arte, naturaleza y música en un solo día por el corazón de Barcelona.",
+        "ca": "Art, natura i música en un sol dia pel cor de Barcelona.",
+        "en": "Art, nature and music in a single day through the heart of Barcelona.",
+        "fr": "Art, nature et musique en une journée au cœur de Barcelone."
+      },
+      "theme": "culture",
+      "emoji": "🎭",
+      "valid_from": "2026-09-01",
+      "valid_to": "2026-09-30",
+      "start_coords": "41.3851,2.1734",
+      "stops": [
+        { "activityId": "goonmap-0001", "suggestedTime": "10:00", "note": "Reserva la entrada online para evitar colas." },
+        { "activityId": "goonmap-0002", "suggestedTime": "13:00", "note": "Ideal para un picnic al mediodía." },
+        { "activityId": "goonmap-0003", "suggestedTime": "20:00", "note": "Llega 15 min antes para admirar el vestíbulo." }
+      ]
+    },
+    {
+      "id": "plan-vistas-sabores",
+      "title": {
+        "es": "Un día de vistas y sabores",
+        "ca": "Un dia de vistes i sabors",
+        "en": "A day of views and flavours",
+        "fr": "Une journée de vues et de saveurs"
+      },
+      "description": {
+        "es": "Del mercado más vivo a la mejor puesta de sol de la ciudad.",
+        "ca": "Del mercat més viu a la millor posta de sol de la ciutat.",
+        "en": "From the liveliest market to the city's best sunset.",
+        "fr": "Du marché le plus animé au plus beau coucher de soleil de la ville."
+      },
+      "theme": "nature",
+      "emoji": "🌇",
+      "valid_from": "2026-09-01",
+      "valid_to": "2026-09-30",
+      "start_coords": "41.3817,2.1717",
+      "stops": [
+        { "activityId": "goonmap-0004", "suggestedTime": "11:00", "note": "Prueba un zumo natural recién hecho." },
+        { "activityId": "goonmap-0006", "suggestedTime": "17:00", "note": "Compra la entrada con antelación." },
+        { "activityId": "goonmap-0005", "suggestedTime": "19:30", "note": "Lleva algo de abrigo para el atardecer." }
+      ]
+    }
+  ]
+}
