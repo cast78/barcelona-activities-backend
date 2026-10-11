@@ -20,13 +20,17 @@ function gistConfig() {
   };
 }
 
+function gistHeaders(cfg) {
+  return {
+    Authorization: `Bearer ${cfg.token}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'goonmap-backend',
+  };
+}
+
 async function fetchFromGist(cfg) {
   const res = await axios.get(`https://api.github.com/gists/${cfg.id}`, {
-    headers: {
-      Authorization: `Bearer ${cfg.token}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'goonmap-backend',
-    },
+    headers: gistHeaders(cfg),
     timeout: GIST_TIMEOUT_MS,
   });
   const file = res.data && res.data.files && res.data.files[cfg.filename];
@@ -57,6 +61,45 @@ async function loadRaw() {
     }
   })();
   return inFlight;
+}
+
+// Contenido actual del Gist sin pasar por la caché (para el panel admin).
+async function getCurrentRaw() {
+  const cfg = gistConfig();
+  if (!cfg) throw new Error('GITHUB_GIST_ID/GITHUB_GIST_TOKEN no configurados');
+  const data = await fetchFromGist(cfg);
+  cache = { data, fetchedAt: Date.now() };
+  return data;
+}
+
+let writeQueue = Promise.resolve();
+
+// Sustituye solo un ámbito en el Gist; las escrituras se serializan para no pisarse.
+function replaceScope(scope, activities) {
+  const run = async () => {
+    const cfg = gistConfig();
+    if (!cfg) throw new Error('GITHUB_GIST_ID/GITHUB_GIST_TOKEN no configurados');
+    const raw = await fetchFromGist(cfg);
+    if (!raw.scopes || typeof raw.scopes !== 'object') throw new Error('El Gist no tiene formato v2 (scopes)');
+
+    const day = new Date().toISOString().slice(0, 10);
+    const next = {
+      ...raw,
+      version: 2,
+      updated_at: day,
+      scopes: { ...raw.scopes, [scope]: { updated_at: day, activities } },
+    };
+    await axios.patch(
+      `https://api.github.com/gists/${cfg.id}`,
+      { files: { [cfg.filename]: { content: JSON.stringify(next, null, 2) } } },
+      { headers: gistHeaders(cfg), timeout: GIST_TIMEOUT_MS }
+    );
+    cache = { data: next, fetchedAt: Date.now() };
+    return next;
+  };
+  const result = writeQueue.then(run, run);
+  writeQueue = result.catch(() => {});
+  return result;
 }
 
 // v2 ({ scopes: { season|week|day|permanent: { activities } } }) y v1 ({ activities }).
@@ -121,4 +164,4 @@ async function getRecommendations() {
   }
 }
 
-module.exports = { getRecommendations };
+module.exports = { getRecommendations, getCurrentRaw, replaceScope };

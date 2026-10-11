@@ -5,10 +5,14 @@ const cors = require('cors');
 const { fetchBarcelonaEvents } = require('./apiClient');
 const { getActivities, addActivity, getLikes, toggleLike, getAttendees, toggleAttend } = require('./storage');
 const { getRecommendations } = require('./recommendations');
+const adminRouter = require('./admin');
 const { CATEGORY_KEYWORDS } = require('./apiClient');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Render va detrás de un proxy: necesario para que req.ip sea la IP real del cliente
+app.set('trust proxy', 1);
 
 const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'https://barcelona-activities-frontend.vercel.app')
   .split(',')
@@ -25,6 +29,8 @@ app.use(cors({
     }
   }
 }));
+// El router admin gestiona su propio parser JSON (límite mayor) y va antes del global
+app.use('/api/admin', adminRouter);
 app.use(express.json());
 
 // Route to get events from Barcelona API

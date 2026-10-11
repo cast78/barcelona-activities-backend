@@ -444,4 +444,4 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
   return dedupedEvents;
 }
 
-module.exports = { fetchBarcelonaEvents, CATEGORY_KEYWORDS };
+module.exports = { fetchBarcelonaEvents, CATEGORY_KEYWORDS, stripHtml };
