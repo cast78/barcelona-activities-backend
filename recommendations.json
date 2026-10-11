@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-25",
+  "updated_at": "2026-10-11",
   "activities": [
     {
       "id": "goonmap-0001",
@@ -15,7 +15,8 @@
       "category": "culture",
       "origen": "GoOnMap",
       "featured": true,
-      "plan_only": false
+      "plan_only": false,
+      "recurring": true
     },
     {
       "id": "goonmap-0002",
@@ -30,14 +31,15 @@
       "category": "nature",
       "origen": "GoOnMap",
       "featured": true,
-      "plan_only": false
+      "plan_only": false,
+      "recurring": true
     },
     {
       "id": "goonmap-0003",
       "name": "Concierto en el Palau de la Música",
       "body": "Música en directo bajo la claraboya modernista, Patrimonio de la Humanidad.",
-      "start_date": "2026-09-12",
-      "end_date": "2026-09-12",
+      "start_date": "2026-10-17",
+      "end_date": "2026-10-17",
       "start_time": "20:00",
       "end_time": "21:30",
       "venue_name": "Palau de la Música Catalana",
@@ -60,7 +62,8 @@
       "category": "food",
       "origen": "GoOnMap",
       "featured": true,
-      "plan_only": false
+      "plan_only": false,
+      "recurring": true
     },
     {
       "id": "goonmap-0005",
@@ -75,7 +78,8 @@
       "category": "nature",
       "origen": "GoOnMap",
       "featured": true,
-      "plan_only": false
+      "plan_only": false,
+      "recurring": true
     },
     {
       "id": "goonmap-0006",
@@ -90,7 +94,8 @@
       "category": "culture",
       "origen": "GoOnMap",
       "featured": true,
-      "plan_only": false
+      "plan_only": false,
+      "recurring": true
     }
   ],
   "plans": [
@@ -110,8 +115,8 @@
       },
       "theme": "culture",
       "emoji": "🎭",
-      "valid_from": "2026-09-01",
-      "valid_to": "2026-09-30",
+      "valid_from": "2026-10-01",
+      "valid_to": "2026-12-31",
       "start_coords": "41.3851,2.1734",
       "stops": [
         { "activityId": "goonmap-0001", "suggestedTime": "10:00", "note": "Reserva la entrada online para evitar colas." },
@@ -135,8 +140,8 @@
       },
       "theme": "nature",
       "emoji": "🌇",
-      "valid_from": "2026-09-01",
-      "valid_to": "2026-09-30",
+      "valid_from": "2026-10-01",
+      "valid_to": "2026-12-31",
       "start_coords": "41.3817,2.1717",
       "stops": [
         { "activityId": "goonmap-0004", "suggestedTime": "11:00", "note": "Prueba un zumo natural recién hecho." },
