@@ -12,6 +12,9 @@ node-stdout.log
 node-stderr.log
 backend.log
 
+# cache local de OpenData (resiliencia ante caídas de la API)
+opendata-cache.json
+
 # OS
 .DS_Store
 Thumbs.db

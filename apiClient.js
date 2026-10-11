@@ -4,6 +4,46 @@ const LOG_FILE = path.join(__dirname, 'backend.log');
 function logToFile(msg) {
   fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${msg}\n`);
 }
+
+// Caché de respuestas buenas de OpenData (resiliencia ante caídas 503/timeout de la API)
+const OPENDATA_CACHE_FILE = path.join(__dirname, 'opendata-cache.json');
+let openDataCache = {};
+try {
+  if (fs.existsSync(OPENDATA_CACHE_FILE)) {
+    openDataCache = JSON.parse(fs.readFileSync(OPENDATA_CACHE_FILE, 'utf8')) || {};
+  }
+} catch {
+  openDataCache = {};
+}
+function saveOpenDataCache() {
+  try {
+    fs.writeFileSync(OPENDATA_CACHE_FILE, JSON.stringify(openDataCache));
+  } catch (e) {
+    logToFile(`[WARN] opendata-cache: no se pudo guardar: ${e.message}`);
+  }
+}
+
+// Convierte HTML crudo de OpenData (tablas de horarios/precios) en texto plano legible
+function stripHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  if (!html.includes('<')) return html.trim();
+  return html
+    .replace(/<\/(tr|p|div|li|h[1-6])>/gi, ' · ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&euro;/gi, '€')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;/gi, "'")
+    .replace(/\s*·\s*(·\s*)+/g, ' · ')
+    .replace(/\s+/g, ' ')
+    .replace(/^\s*·\s*|\s*·\s*$/g, '')
+    .trim();
+}
+
 const axios = require('axios');
 const { VALID_CATEGORIES } = require('./models');
 
@@ -146,6 +186,7 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
   const toDate = endDate || (() => {
     const d = new Date(); d.setDate(d.getDate() + 10); return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
   })();
+  const cacheKey = `${fromDate}_${toDate}`;
 
   let mainEvents = [];
   const t0 = Date.now();
@@ -170,10 +211,10 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
       const timetableRaw = (rec.timetable || '').trim();
       const timetableTimeMatch = timetableRaw.match(/^(\d{1,2}:\d{2})/);
       const timetableTime = timetableTimeMatch ? timetableTimeMatch[1] : '';
-      const timetableText = timetableRaw && !timetableTimeMatch ? timetableRaw : '';
+      const timetableText = timetableRaw && !timetableTimeMatch ? stripHtml(timetableRaw) : '';
       const startTime = timetableTime || (tsHour >= 7 ? tsTime : '');
       const bodyParts = [
-        rec.values_description || '',
+        stripHtml(rec.values_description || ''),
         timetableText,
         rec.institution_name ? `Organitza: ${rec.institution_name}` : '',
         rec.secondary_filters_name ? `Àmbit: ${rec.secondary_filters_name}` : ''
@@ -281,6 +322,10 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
       // Filtrar eventos pasados usando la hora real de Barcelona (post-enriquecimiento)
       mainEvents = filterPastEvents(mainEvents, today, currentTimeMinutes);
 
+      // Guardar la última respuesta buena en caché (memoria + disco)
+      openDataCache[cacheKey] = { events: mainEvents, cachedAt: new Date().toISOString() };
+      saveOpenDataCache();
+
       const msg = `[INFO] opendata-ajuntament: ${mainEvents.length} eventos obtenidos`;
       console.log(msg);
       logToFile(msg);
@@ -293,6 +338,14 @@ async function fetchBarcelonaEvents(startDate, endDate, currentTime) {
     const msg = `[WARN] opendata-ajuntament: error ${apiError.message}`;
     console.warn(msg);
     logToFile(msg);
+    // Fallback: servir la última respuesta buena cacheada para este rango
+    const cached = openDataCache[cacheKey];
+    if (cached && Array.isArray(cached.events) && cached.events.length > 0) {
+      mainEvents = filterPastEvents(cached.events, today, currentTimeMinutes);
+      const cacheMsg = `[INFO] opendata-ajuntament: API caída, usando caché de ${cached.cachedAt} (${mainEvents.length} eventos)`;
+      console.log(cacheMsg);
+      logToFile(cacheMsg);
+    }
   }
 
   // Llamar a las otras fuentes en paralelo
